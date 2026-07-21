@@ -12,9 +12,17 @@ const MAX_LOG_URL_LENGTH = 80;
 // the same callback in the same service-worker lifecycle.
 const g_processingTabs = new Set();
 
+function beginProcessingTab(tabId) {
+	if (tabId < 0 || g_processingTabs.has(tabId)) {
+		return false;
+	}
+	g_processingTabs.add(tabId);
+	return true;
+}
+
 chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
 	async function handle() {
-		if (!sender || !sender.tab || sender.tab.id == null || !msg || !msg.type) {
+		if (!sender || !sender.tab || sender.tab.id === undefined || sender.tab.id === null || !msg || !msg.type) {
 			return;
 		}
 
@@ -106,16 +114,15 @@ chrome.webRequest.onBeforeRequest.addListener(async function(info) {
 chrome.webRequest.onBeforeRedirect.addListener(async function(info) {
 	console.log('[Tesla Auth] onBeforeRedirect fired', info.tabId, info.redirectUrl ? info.redirectUrl.substring(0, MAX_LOG_URL_LENGTH) : '');
 
-	if (info.tabId < 0 || !isNewCallbackUrl(info.redirectUrl)) {
+	if (!isNewCallbackUrl(info.redirectUrl)) {
 		return;
 	}
 
 	// Guard against double-processing if onBeforeNavigate fires in the same SW lifecycle
-	if (g_processingTabs.has(info.tabId)) {
+	if (!beginProcessingTab(info.tabId)) {
 		console.log('[Tesla Auth] onBeforeRedirect: tab already processing, skipping', info.tabId);
 		return;
 	}
-	g_processingTabs.add(info.tabId);
 
 	let trackedTabInfo = await getTrackedTabInfo(info.tabId, true);
 	if (!trackedTabInfo) {
@@ -139,11 +146,10 @@ chrome.webNavigation.onBeforeNavigate.addListener(async function(details) {
 	}
 
 	// Skip if onBeforeRedirect already handled this tab in the same SW lifecycle
-	if (g_processingTabs.has(details.tabId)) {
+	if (!beginProcessingTab(details.tabId)) {
 		console.log('[Tesla Auth] onBeforeNavigate: tab already processing, skipping', details.tabId);
 		return;
 	}
-	g_processingTabs.add(details.tabId);
 
 	let trackedTabInfo = await getTrackedTabInfo(details.tabId, true);
 	if (!trackedTabInfo) {
@@ -158,10 +164,6 @@ chrome.webNavigation.onBeforeNavigate.addListener(async function(details) {
 // Header-based fallback for Chrome: inspect 3xx redirects from auth.tesla.com and
 // extract the Location header before navigation to tesla:// is attempted.
 chrome.webRequest.onHeadersReceived.addListener(async function(info) {
-	if (info.tabId < 0 || g_processingTabs.has(info.tabId)) {
-		return;
-	}
-
 	if (typeof info.statusCode != 'number' || info.statusCode < 300 || info.statusCode >= 400) {
 		return;
 	}
@@ -171,7 +173,10 @@ chrome.webRequest.onHeadersReceived.addListener(async function(info) {
 		return;
 	}
 
-	g_processingTabs.add(info.tabId);
+	if (!beginProcessingTab(info.tabId)) {
+		return;
+	}
+
 	let trackedTabInfo = await getTrackedTabInfo(info.tabId, true);
 	if (!trackedTabInfo) {
 		g_processingTabs.delete(info.tabId);
