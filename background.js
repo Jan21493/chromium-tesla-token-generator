@@ -5,6 +5,8 @@ chrome.action.onClicked.addListener(async function(tab) {
 
 const NEW_CALLBACK_URL_PREFIX = 'tesla://auth/callback';
 const INVALID_TAB_ID = -1;
+// Maximum number of characters to include from a URL in a log message
+const MAX_LOG_URL_LENGTH = 80;
 
 // Tracks tabs whose auth callback is currently being processed to prevent
 // double-processing when both onBeforeRedirect and onBeforeNavigate fire for
@@ -86,7 +88,7 @@ chrome.webRequest.onBeforeRequest.addListener(async function(info) {
 // can issue the final 302 → tesla:// from various sub-paths (not only /oauth2/).
 // isNewCallbackUrl() ensures only actual tesla://auth/callback redirects are acted on.
 chrome.webRequest.onBeforeRedirect.addListener(async function(info) {
-	console.log('[Tesla Auth] onBeforeRedirect fired', info.tabId, info.redirectUrl ? info.redirectUrl.substring(0, 80) : '');
+	console.log('[Tesla Auth] onBeforeRedirect fired', info.tabId, info.redirectUrl ? info.redirectUrl.substring(0, MAX_LOG_URL_LENGTH) : '');
 
 	if (info.tabId <= INVALID_TAB_ID || !isNewCallbackUrl(info.redirectUrl)) {
 		return;
@@ -114,7 +116,7 @@ chrome.webRequest.onBeforeRedirect.addListener(async function(info) {
 // onBeforeRedirect but catches cases where the service worker was sleeping during
 // the HTTP redirect event and missed onBeforeRedirect.
 chrome.webNavigation.onBeforeNavigate.addListener(async function(details) {
-	console.log('[Tesla Auth] onBeforeNavigate fired', details.tabId, details.url ? details.url.substring(0, 80) : '');
+	console.log('[Tesla Auth] onBeforeNavigate fired', details.tabId, details.url ? details.url.substring(0, MAX_LOG_URL_LENGTH) : '');
 
 	if (!isNewCallbackUrl(details.url)) {
 		return;
