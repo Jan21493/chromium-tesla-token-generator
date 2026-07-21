@@ -4,7 +4,6 @@ chrome.action.onClicked.addListener(async function(tab) {
 });
 
 const NEW_CALLBACK_URL_PREFIX = 'tesla://auth/callback';
-const INVALID_TAB_ID = -1;
 // Maximum number of characters to include from a URL in a log message
 const MAX_LOG_URL_LENGTH = 80;
 
@@ -15,7 +14,7 @@ const g_processingTabs = new Set();
 
 chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
 	async function handle() {
-		if (!sender || !sender.tab || sender.tab.id === undefined || sender.tab.id === null || !msg || !msg.type) {
+		if (!sender || !sender.tab || sender.tab.id == null || !msg || !msg.type) {
 			return;
 		}
 
@@ -107,7 +106,7 @@ chrome.webRequest.onBeforeRequest.addListener(async function(info) {
 chrome.webRequest.onBeforeRedirect.addListener(async function(info) {
 	console.log('[Tesla Auth] onBeforeRedirect fired', info.tabId, info.redirectUrl ? info.redirectUrl.substring(0, MAX_LOG_URL_LENGTH) : '');
 
-	if (info.tabId <= INVALID_TAB_ID || !isNewCallbackUrl(info.redirectUrl)) {
+	if (info.tabId < 0 || !isNewCallbackUrl(info.redirectUrl)) {
 		return;
 	}
 
@@ -159,7 +158,7 @@ chrome.webNavigation.onBeforeNavigate.addListener(async function(details) {
 // Header-based fallback for Chrome: inspect 3xx redirects from auth.tesla.com and
 // extract the Location header before navigation to tesla:// is attempted.
 chrome.webRequest.onHeadersReceived.addListener(async function(info) {
-	if (info.tabId <= INVALID_TAB_ID || g_processingTabs.has(info.tabId)) {
+	if (info.tabId < 0 || g_processingTabs.has(info.tabId)) {
 		return;
 	}
 
