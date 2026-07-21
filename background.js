@@ -60,8 +60,15 @@ chrome.webRequest.onBeforeRequest.addListener(async function(info) {
 }, {urls: ['https://auth.tesla.com/void/callback*']});
 
 chrome.webRequest.onBeforeRedirect.addListener(async function(info) {
-	if (!info.redirectUrl.startsWith(NEW_CALLBACK_URL_PREFIX)) {
+	if (info.tabId < 0 || !info.redirectUrl.startsWith(NEW_CALLBACK_URL_PREFIX)) {
 		return;
 	}
+
+	let tabInfoKey = `tab_${info.tabId}`;
+	let tabInfo = (await chrome.storage.session.get(tabInfoKey))[tabInfoKey];
+	if (typeof tabInfo != 'object') {
+		return;
+	}
+
 	await processAuthCallback(info.tabId, info.redirectUrl);
 }, {urls: ['https://auth.tesla.com/oauth2/v3/authorize*']});
