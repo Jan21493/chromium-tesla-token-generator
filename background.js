@@ -62,6 +62,10 @@ async function processAuthCallback(tabId, authUrl, tabInfoKey, tabInfo) {
 	await chrome.tabs.update(tabId, {url: chrome.runtime.getURL('auth.html')});
 }
 
+function isNewCallbackUrl(url) {
+	return typeof url == 'string' && url.startsWith(NEW_CALLBACK_URL_PREFIX);
+}
+
 chrome.webRequest.onBeforeRequest.addListener(async function(info) {
 	let trackedTabInfo = await getTrackedTabInfo(info.tabId, true);
 	if (!trackedTabInfo) {
@@ -71,7 +75,7 @@ chrome.webRequest.onBeforeRequest.addListener(async function(info) {
 }, {urls: ['https://auth.tesla.com/void/callback*']});
 
 chrome.webRequest.onBeforeRedirect.addListener(async function(info) {
-	if (info.tabId <= INVALID_TAB_ID || !info.redirectUrl.startsWith(NEW_CALLBACK_URL_PREFIX)) {
+	if (info.tabId <= INVALID_TAB_ID || !isNewCallbackUrl(info.redirectUrl)) {
 		return;
 	}
 
@@ -81,4 +85,4 @@ chrome.webRequest.onBeforeRedirect.addListener(async function(info) {
 	}
 
 	await processAuthCallback(info.tabId, info.redirectUrl, trackedTabInfo.tabInfoKey, trackedTabInfo.tabInfo);
-}, {urls: ['https://auth.tesla.com/oauth2/v3/authorize*']});
+}, {urls: ['https://auth.tesla.com/oauth2/*']});
