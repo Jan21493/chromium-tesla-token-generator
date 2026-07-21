@@ -38,9 +38,12 @@ chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
 	return true;
 });
 
-async function processAuthCallback(tabId, authUrl) {
+async function processAuthCallback(tabId, authUrl, tabInfo) {
 	let tabInfoKey = `tab_${tabId}`;
-	let tabInfo = (await chrome.storage.session.get(tabInfoKey))[tabInfoKey];
+	if (typeof tabInfo != 'object') {
+		tabInfo = (await chrome.storage.session.get(tabInfoKey))[tabInfoKey];
+	}
+
 	if (typeof tabInfo != 'object') {
 		console.log('Ignoring callback because it was not in a tab opened by us');
 		return;
@@ -70,5 +73,5 @@ chrome.webRequest.onBeforeRedirect.addListener(async function(info) {
 		return;
 	}
 
-	await processAuthCallback(info.tabId, info.redirectUrl);
+	await processAuthCallback(info.tabId, info.redirectUrl, tabInfo);
 }, {urls: ['https://auth.tesla.com/oauth2/v3/authorize*']});
