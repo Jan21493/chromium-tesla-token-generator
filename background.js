@@ -3,6 +3,7 @@ chrome.action.onClicked.addListener(async function(tab) {
 	await chrome.storage.session.set({[`tab_${newTab.id}`]: true});
 });
 
+// Tesla's OAuth redirect URI now uses this custom scheme.
 const NEW_CALLBACK_URL_PREFIX = 'tesla://auth/callback';
 // Maximum number of characters to include from a URL in a log message
 const MAX_LOG_URL_LENGTH = 80;
@@ -173,6 +174,7 @@ chrome.webRequest.onHeadersReceived.addListener(async function(info) {
 	}
 
 	if (!beginProcessingTab(info.tabId)) {
+		console.log('[Tesla Auth] onHeadersReceived: tab already processing or invalid tab id, skipping', info.tabId);
 		return;
 	}
 
