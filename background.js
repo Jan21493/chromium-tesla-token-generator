@@ -13,7 +13,7 @@ const MAX_LOG_URL_LENGTH = 80;
 const g_processingTabs = new Set();
 
 function beginProcessingTab(tabId) {
-	if (typeof tabId != 'number' || tabId < 0 || g_processingTabs.has(tabId)) {
+	if (typeof tabId !== 'number' || tabId < 0 || g_processingTabs.has(tabId)) {
 		return false;
 	}
 	g_processingTabs.add(tabId);
@@ -22,7 +22,7 @@ function beginProcessingTab(tabId) {
 
 chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
 	async function handle() {
-		if (!sender || !sender.tab || typeof sender.tab.id != 'number' || sender.tab.id < 0 || !msg || !msg.type) {
+		if (!sender || !sender.tab || typeof sender.tab.id !== 'number' || sender.tab.id < 0 || !msg || !msg.type) {
 			return;
 		}
 
@@ -57,7 +57,7 @@ chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
 async function getTrackedTabInfo(tabId, shouldLogIfMissing) {
 	let tabInfoKey = `tab_${tabId}`;
 	let tabInfo = (await chrome.storage.session.get(tabInfoKey))[tabInfoKey];
-	if (typeof tabInfo != 'object') {
+	if (!tabInfo || typeof tabInfo !== 'object') {
 		if (shouldLogIfMissing) {
 			console.log('Ignoring callback because it was not in a tab opened by us');
 		}
@@ -78,7 +78,7 @@ async function processAuthCallback(tabId, authUrl, tabInfoKey, tabInfo) {
 }
 
 function isNewCallbackUrl(url) {
-	return typeof url == 'string' && url.startsWith(NEW_CALLBACK_URL_PREFIX);
+	return typeof url === 'string' && url.startsWith(NEW_CALLBACK_URL_PREFIX);
 }
 
 function getRedirectLocationHeaderValue(responseHeaders) {
@@ -87,10 +87,10 @@ function getRedirectLocationHeaderValue(responseHeaders) {
 	}
 
 	for (let header of responseHeaders) {
-		if (!header || typeof header.name != 'string') {
+		if (!header || typeof header.name !== 'string') {
 			continue;
 		}
-		if (header.name.toLowerCase() == 'location' && typeof header.value == 'string') {
+		if (header.name.toLowerCase() === 'location' && typeof header.value === 'string') {
 			return header.value;
 		}
 	}
@@ -163,7 +163,7 @@ chrome.webNavigation.onBeforeNavigate.addListener(async function(details) {
 // Header-based fallback for Chrome: inspect 3xx redirects from auth.tesla.com and
 // extract the Location header before navigation to tesla:// is attempted.
 chrome.webRequest.onHeadersReceived.addListener(async function(info) {
-	if (typeof info.statusCode != 'number' || info.statusCode < 300 || info.statusCode >= 400) {
+	if (typeof info.statusCode !== 'number' || info.statusCode < 300 || info.statusCode >= 400) {
 		return;
 	}
 
