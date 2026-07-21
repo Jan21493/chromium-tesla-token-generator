@@ -38,17 +38,20 @@ chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
 	return true;
 });
 
-async function processAuthCallback(tabId, authUrl, tabInfo) {
+async function getTrackedTabInfo(tabId, logWhenMissing) {
 	let tabInfoKey = `tab_${tabId}`;
+	let tabInfo = (await chrome.storage.session.get(tabInfoKey))[tabInfoKey];
 	if (typeof tabInfo != 'object') {
-		tabInfo = (await chrome.storage.session.get(tabInfoKey))[tabInfoKey];
+		if (logWhenMissing) {
+			console.log('Ignoring callback because it was not in a tab opened by us');
+		}
+		return null;
 	}
 
-	if (typeof tabInfo != 'object') {
-		console.log('Ignoring callback because it was not in a tab opened by us');
-		return;
-	}
+	return {tabInfoKey, tabInfo};
+}
 
+async function processAuthCallback(tabId, authUrl, tabInfoKey, tabInfo) {
 	// Auth succeeded
 	tabInfo.authUrl = authUrl;
 	await chrome.storage.session.set({[tabInfoKey]: tabInfo});
@@ -59,7 +62,11 @@ async function processAuthCallback(tabId, authUrl, tabInfo) {
 }
 
 chrome.webRequest.onBeforeRequest.addListener(async function(info) {
-	await processAuthCallback(info.tabId, info.url);
+	let trackedTabInfo = await getTrackedTabInfo(info.tabId, true);
+	if (!trackedTabInfo) {
+		return;
+	}
+	await processAuthCallback(info.tabId, info.url, trackedTabInfo.tabInfoKey, trackedTabInfo.tabInfo);
 }, {urls: ['https://auth.tesla.com/void/callback*']});
 
 chrome.webRequest.onBeforeRedirect.addListener(async function(info) {
@@ -67,11 +74,10 @@ chrome.webRequest.onBeforeRedirect.addListener(async function(info) {
 		return;
 	}
 
-	let tabInfoKey = `tab_${info.tabId}`;
-	let tabInfo = (await chrome.storage.session.get(tabInfoKey))[tabInfoKey];
-	if (typeof tabInfo != 'object') {
+	let trackedTabInfo = await getTrackedTabInfo(info.tabId, false);
+	if (!trackedTabInfo) {
 		return;
 	}
 
-	await processAuthCallback(info.tabId, info.redirectUrl, tabInfo);
+	await processAuthCallback(info.tabId, info.redirectUrl, trackedTabInfo.tabInfoKey, trackedTabInfo.tabInfo);
 }, {urls: ['https://auth.tesla.com/oauth2/v3/authorize*']});
