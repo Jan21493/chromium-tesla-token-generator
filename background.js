@@ -13,7 +13,7 @@ const MAX_LOG_URL_LENGTH = 80;
 const g_processingTabs = new Set();
 
 function beginProcessingTab(tabId) {
-	if (tabId < 0 || g_processingTabs.has(tabId)) {
+	if (typeof tabId != 'number' || tabId < 0 || g_processingTabs.has(tabId)) {
 		return false;
 	}
 	g_processingTabs.add(tabId);
@@ -22,7 +22,7 @@ function beginProcessingTab(tabId) {
 
 chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
 	async function handle() {
-		if (!sender || !sender.tab || sender.tab.id === undefined || sender.tab.id === null || !msg || !msg.type) {
+		if (!sender || !sender.tab || typeof sender.tab.id != 'number' || sender.tab.id < 0 || !msg || !msg.type) {
 			return;
 		}
 
@@ -86,8 +86,7 @@ function getRedirectLocationHeaderValue(responseHeaders) {
 		return null;
 	}
 
-	for (let i = 0; i < responseHeaders.length; i++) {
-		let header = responseHeaders[i];
+	for (let header of responseHeaders) {
 		if (!header || typeof header.name != 'string') {
 			continue;
 		}
