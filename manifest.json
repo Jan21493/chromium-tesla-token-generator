@@ -9,7 +9,8 @@
 	},
 	"permissions": [
 		"storage",
-		"webRequest"
+		"webRequest",
+		"webNavigation"
 	],
 	"host_permissions": [
 		"https://auth.tesla.com/*"
