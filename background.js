@@ -4,6 +4,7 @@ chrome.action.onClicked.addListener(async function(tab) {
 });
 
 const NEW_CALLBACK_URL_PREFIX = 'tesla://auth/callback';
+const INVALID_TAB_ID = -1;
 
 chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
 	async function handle() {
@@ -38,11 +39,11 @@ chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
 	return true;
 });
 
-async function getTrackedTabInfo(tabId, logWhenMissing) {
+async function getTrackedTabInfo(tabId, shouldLogIfMissing) {
 	let tabInfoKey = `tab_${tabId}`;
 	let tabInfo = (await chrome.storage.session.get(tabInfoKey))[tabInfoKey];
 	if (typeof tabInfo != 'object') {
-		if (logWhenMissing) {
+		if (shouldLogIfMissing) {
 			console.log('Ignoring callback because it was not in a tab opened by us');
 		}
 		return null;
@@ -70,7 +71,7 @@ chrome.webRequest.onBeforeRequest.addListener(async function(info) {
 }, {urls: ['https://auth.tesla.com/void/callback*']});
 
 chrome.webRequest.onBeforeRedirect.addListener(async function(info) {
-	if (info.tabId < 0 || !info.redirectUrl.startsWith(NEW_CALLBACK_URL_PREFIX)) {
+	if (info.tabId <= INVALID_TAB_ID || !info.redirectUrl.startsWith(NEW_CALLBACK_URL_PREFIX)) {
 		return;
 	}
 
