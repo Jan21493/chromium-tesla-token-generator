@@ -15,7 +15,7 @@ const g_processingTabs = new Set();
 
 chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
 	async function handle() {
-		if (!sender || !sender.tab || !sender.tab.id || !msg || !msg.type) {
+		if (!sender || !sender.tab || sender.tab.id === undefined || sender.tab.id === null || !msg || !msg.type) {
 			return;
 		}
 
@@ -72,6 +72,23 @@ async function processAuthCallback(tabId, authUrl, tabInfoKey, tabInfo) {
 
 function isNewCallbackUrl(url) {
 	return typeof url == 'string' && url.startsWith(NEW_CALLBACK_URL_PREFIX);
+}
+
+function getRedirectLocationHeaderValue(responseHeaders) {
+	if (!Array.isArray(responseHeaders)) {
+		return null;
+	}
+
+	for (let i = 0; i < responseHeaders.length; i++) {
+		let header = responseHeaders[i];
+		if (!header || typeof header.name != 'string') {
+			continue;
+		}
+		if (header.name.toLowerCase() == 'location' && typeof header.value == 'string') {
+			return header.value;
+		}
+	}
+	return null;
 }
 
 // Legacy callback handler for the old https://auth.tesla.com/void/callback redirect URI
@@ -138,3 +155,30 @@ chrome.webNavigation.onBeforeNavigate.addListener(async function(details) {
 	console.log('[Tesla Auth] onBeforeNavigate: processing auth callback for tab', details.tabId);
 	await processAuthCallback(details.tabId, details.url, trackedTabInfo.tabInfoKey, trackedTabInfo.tabInfo);
 }, {url: [{schemes: ['tesla']}]});
+
+// Header-based fallback for Chrome: inspect 3xx redirects from auth.tesla.com and
+// extract the Location header before navigation to tesla:// is attempted.
+chrome.webRequest.onHeadersReceived.addListener(async function(info) {
+	if (info.tabId <= INVALID_TAB_ID || g_processingTabs.has(info.tabId)) {
+		return;
+	}
+
+	if (typeof info.statusCode != 'number' || info.statusCode < 300 || info.statusCode >= 400) {
+		return;
+	}
+
+	let locationHeader = getRedirectLocationHeaderValue(info.responseHeaders);
+	if (!isNewCallbackUrl(locationHeader)) {
+		return;
+	}
+
+	g_processingTabs.add(info.tabId);
+	let trackedTabInfo = await getTrackedTabInfo(info.tabId, true);
+	if (!trackedTabInfo) {
+		g_processingTabs.delete(info.tabId);
+		return;
+	}
+
+	console.log('[Tesla Auth] onHeadersReceived: processing auth callback for tab', info.tabId);
+	await processAuthCallback(info.tabId, locationHeader, trackedTabInfo.tabInfoKey, trackedTabInfo.tabInfo);
+}, {urls: ['https://auth.tesla.com/*']}, ['responseHeaders']);
