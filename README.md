@@ -11,6 +11,7 @@ manifest so Chromium's security model prevents sending credentials or any other 
 **Why is the extension requesting access to read my browsing history?** Because of the way that Tesla's authentication
 server works, it's necessary to watch your browsing traffic to detect when the login has completed. This particular
 login request is the only thing that the extension is watching for.
+Tesla now finishes login through `tesla://auth/callback`; the extension captures that redirect and never sends it anywhere.
 
 Once you have the extension installed, click the Access Token Generator for Tesla button on your toolbar to get started.
 

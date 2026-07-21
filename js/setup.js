@@ -9,9 +9,9 @@ async function main() {
 		code_challenge_method: 'S256',
 		locale: 'en',
 		prompt: 'login',
-		redirect_uri: 'https://auth.tesla.com/void/callback',
+		redirect_uri: 'tesla://auth/callback',
 		response_type: 'code',
-		scope: 'openid email offline_access',
+		scope: 'openid email offline_access phone',
 		state: generateCodeChallenge(generateCodeVerifier())
 	};
 
