@@ -74,7 +74,7 @@ chrome.webRequest.onBeforeRedirect.addListener(async function(info) {
 		return;
 	}
 
-	let trackedTabInfo = await getTrackedTabInfo(info.tabId, false);
+	let trackedTabInfo = await getTrackedTabInfo(info.tabId, true);
 	if (!trackedTabInfo) {
 		return;
 	}
