@@ -3,8 +3,8 @@ chrome.action.onClicked.addListener(async function(tab) {
 	await chrome.storage.session.set({[`tab_${newTab.id}`]: true});
 });
 
+// Tesla's OAuth redirect URI now uses this custom scheme.
 const NEW_CALLBACK_URL_PREFIX = 'tesla://auth/callback';
-const INVALID_TAB_ID = -1;
 // Maximum number of characters to include from a URL in a log message
 const MAX_LOG_URL_LENGTH = 80;
 
@@ -13,9 +13,17 @@ const MAX_LOG_URL_LENGTH = 80;
 // the same callback in the same service-worker lifecycle.
 const g_processingTabs = new Set();
 
+function beginProcessingTab(tabId) {
+	if (typeof tabId !== 'number' || tabId < 0 || g_processingTabs.has(tabId)) {
+		return false;
+	}
+	g_processingTabs.add(tabId);
+	return true;
+}
+
 chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
 	async function handle() {
-		if (!sender || !sender.tab || !sender.tab.id || !msg || !msg.type) {
+		if (!sender || !sender.tab || typeof sender.tab.id !== 'number' || sender.tab.id < 0 || !msg || !msg.type) {
 			return;
 		}
 
@@ -50,7 +58,7 @@ chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
 async function getTrackedTabInfo(tabId, shouldLogIfMissing) {
 	let tabInfoKey = `tab_${tabId}`;
 	let tabInfo = (await chrome.storage.session.get(tabInfoKey))[tabInfoKey];
-	if (typeof tabInfo != 'object') {
+	if (!tabInfo || typeof tabInfo !== 'object') {
 		if (shouldLogIfMissing) {
 			console.log('Ignoring callback because it was not in a tab opened by us');
 		}
@@ -71,7 +79,23 @@ async function processAuthCallback(tabId, authUrl, tabInfoKey, tabInfo) {
 }
 
 function isNewCallbackUrl(url) {
-	return typeof url == 'string' && url.startsWith(NEW_CALLBACK_URL_PREFIX);
+	return typeof url === 'string' && url.startsWith(NEW_CALLBACK_URL_PREFIX);
+}
+
+function getRedirectLocationHeaderValue(responseHeaders) {
+	if (!Array.isArray(responseHeaders)) {
+		return null;
+	}
+
+	for (let header of responseHeaders) {
+		if (!header || typeof header.name !== 'string') {
+			continue;
+		}
+		if (header.name.toLowerCase() === 'location' && typeof header.value === 'string') {
+			return header.value;
+		}
+	}
+	return null;
 }
 
 // Legacy callback handler for the old https://auth.tesla.com/void/callback redirect URI
@@ -90,16 +114,15 @@ chrome.webRequest.onBeforeRequest.addListener(async function(info) {
 chrome.webRequest.onBeforeRedirect.addListener(async function(info) {
 	console.log('[Tesla Auth] onBeforeRedirect fired', info.tabId, info.redirectUrl ? info.redirectUrl.substring(0, MAX_LOG_URL_LENGTH) : '');
 
-	if (info.tabId <= INVALID_TAB_ID || !isNewCallbackUrl(info.redirectUrl)) {
+	if (!isNewCallbackUrl(info.redirectUrl)) {
 		return;
 	}
 
 	// Guard against double-processing if onBeforeNavigate fires in the same SW lifecycle
-	if (g_processingTabs.has(info.tabId)) {
+	if (!beginProcessingTab(info.tabId)) {
 		console.log('[Tesla Auth] onBeforeRedirect: tab already processing, skipping', info.tabId);
 		return;
 	}
-	g_processingTabs.add(info.tabId);
 
 	let trackedTabInfo = await getTrackedTabInfo(info.tabId, true);
 	if (!trackedTabInfo) {
@@ -123,11 +146,10 @@ chrome.webNavigation.onBeforeNavigate.addListener(async function(details) {
 	}
 
 	// Skip if onBeforeRedirect already handled this tab in the same SW lifecycle
-	if (g_processingTabs.has(details.tabId)) {
+	if (!beginProcessingTab(details.tabId)) {
 		console.log('[Tesla Auth] onBeforeNavigate: tab already processing, skipping', details.tabId);
 		return;
 	}
-	g_processingTabs.add(details.tabId);
 
 	let trackedTabInfo = await getTrackedTabInfo(details.tabId, true);
 	if (!trackedTabInfo) {
@@ -138,3 +160,30 @@ chrome.webNavigation.onBeforeNavigate.addListener(async function(details) {
 	console.log('[Tesla Auth] onBeforeNavigate: processing auth callback for tab', details.tabId);
 	await processAuthCallback(details.tabId, details.url, trackedTabInfo.tabInfoKey, trackedTabInfo.tabInfo);
 }, {url: [{schemes: ['tesla']}]});
+
+// Header-based fallback for Chrome: inspect 3xx redirects from auth.tesla.com and
+// extract the Location header before navigation to tesla:// is attempted.
+chrome.webRequest.onHeadersReceived.addListener(async function(info) {
+	if (typeof info.statusCode !== 'number' || info.statusCode < 300 || info.statusCode >= 400) {
+		return;
+	}
+
+	let locationHeader = getRedirectLocationHeaderValue(info.responseHeaders);
+	if (!isNewCallbackUrl(locationHeader)) {
+		return;
+	}
+
+	if (!beginProcessingTab(info.tabId)) {
+		console.log('[Tesla Auth] onHeadersReceived: tab already processing or invalid tab id, skipping', info.tabId);
+		return;
+	}
+
+	let trackedTabInfo = await getTrackedTabInfo(info.tabId, true);
+	if (!trackedTabInfo) {
+		g_processingTabs.delete(info.tabId);
+		return;
+	}
+
+	console.log('[Tesla Auth] onHeadersReceived: processing auth callback for tab', info.tabId);
+	await processAuthCallback(info.tabId, locationHeader, trackedTabInfo.tabInfoKey, trackedTabInfo.tabInfo);
+}, {urls: ['https://auth.tesla.com/*']}, ['responseHeaders']);
