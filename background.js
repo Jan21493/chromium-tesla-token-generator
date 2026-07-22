@@ -1,3 +1,27 @@
+// Remove Tesla's Content-Security-Policy header on the OAuth authorize pages so that
+// hcaptcha can create blob workers (the page's CSP omits worker-src, causing the browser
+// to fall back to script-src which doesn't include blob:, blocking the captcha worker).
+chrome.runtime.onInstalled.addListener(function() {
+	chrome.declarativeNetRequest.updateDynamicRules({
+		removeRuleIds: [1],
+		addRules: [{
+			id: 1,
+			priority: 1,
+			action: {
+				type: 'modifyHeaders',
+				responseHeaders: [{
+					header: 'content-security-policy',
+					operation: 'remove'
+				}]
+			},
+			condition: {
+				urlFilter: '||auth.tesla.com/oauth2/',
+				resourceTypes: ['main_frame', 'sub_frame']
+			}
+		}]
+	});
+});
+
 chrome.action.onClicked.addListener(async function(tab) {
 	let newTab = await chrome.tabs.create({url: 'setup.html'});
 	await chrome.storage.session.set({[`tab_${newTab.id}`]: true});
