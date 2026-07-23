@@ -2,6 +2,8 @@ main();
 async function main() {
 	let codeVerifier = generateCodeVerifier();
 	let codeChallenge = generateCodeChallenge(codeVerifier);
+	let redirectUri = chrome.identity.getRedirectURL('tesla');
+	let state = generateCodeChallenge(generateCodeVerifier());
 	let queryString = {
 //        audience: '',
 		client_id: 'ownerapi',
@@ -9,19 +11,38 @@ async function main() {
 		code_challenge_method: 'S256',
 		locale: 'en',
 		prompt: 'login',
-		redirect_uri: 'https://auth.tesla.com/void/callback',
+		redirect_uri: redirectUri,
 		response_type: 'code',
 		scope: 'openid email offline_access',
-		state: generateCodeChallenge(generateCodeVerifier())
+		state
 	};
 
 	await chrome.runtime.sendMessage({
 		type: 'init',
 		codeVerifier,
-		codeChallenge
+		codeChallenge,
+		redirectUri,
+		state
 	});
 
-	location.href = 'https://auth.tesla.com/oauth2/v3/authorize?' + Object.keys(queryString).map(k => `${k}=${encodeURIComponent(queryString[k])}`).join('&');
+	let authUrl = 'https://auth.tesla.com/oauth2/v3/authorize?' + Object.keys(queryString).map(k => `${k}=${encodeURIComponent(queryString[k])}`).join('&');
+
+	try {
+		let responseUrl = await chrome.identity.launchWebAuthFlow({
+			url: authUrl,
+			interactive: true
+		});
+
+		await chrome.runtime.sendMessage({
+			type: 'completeAuth',
+			authUrl: responseUrl
+		});
+	} catch (ex) {
+		await chrome.runtime.sendMessage({
+			type: 'completeAuth',
+			authError: ex && ex.message ? ex.message : String(ex)
+		});
+	}
 }
 
 function generateCodeVerifier() {

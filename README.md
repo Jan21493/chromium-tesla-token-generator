@@ -4,13 +4,13 @@ There are a number of useful third-party services and apps that integrate with T
 but as of yet Tesla doesn't have an OAuth API that's open to the public. The only way to get access to Tesla product
 data, therefore, is using an authentication token.
 
-This extension for Chrome and Chromium based browsers enables you to get those tokens easily and safely. All
-communication goes directly to tesla.com; in fact, auth.tesla.com is the only origin declared in the extension's
-manifest so Chromium's security model prevents sending credentials or any other data to any server besides Tesla.
+This extension for Chrome and Chromium based browsers enables you to get those tokens easily and safely. The Tesla
+sign-in flow uses Chromium's extension identity redirect handling, and auth.tesla.com is the only remote origin
+declared in the extension's manifest for the OAuth/token exchange.
 
-**Why is the extension requesting access to read my browsing history?** Because of the way that Tesla's authentication
-server works, it's necessary to watch your browsing traffic to detect when the login has completed. This particular
-login request is the only thing that the extension is watching for.
+**Why is the extension requesting identity access?** Chromium's `chrome.identity.launchWebAuthFlow` API is used to open
+Tesla's sign-in page and capture the OAuth redirect back into the extension without inspecting arbitrary browsing
+traffic.
 
 Once you have the extension installed, click the Access Token Generator for Tesla button on your toolbar to get started.
 
