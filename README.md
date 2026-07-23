@@ -13,7 +13,7 @@ server works, it's necessary to watch your browsing traffic to detect when the l
 login request is the only thing that the extension is watching for.
 Tesla now finishes login through `tesla://auth/callback`; the extension captures that redirect and never sends it anywhere.
 
-Extension is updated to work with Tesla callback URL update (July 21, 2026)
+Extension is updated to work with Tesla callback URL update (July 21, 2026) - WORK IN PROGRESS!!!
 
 Once you have the extension installed, click the Access Token Generator for Tesla button on your toolbar to get started.
 
