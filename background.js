@@ -10,14 +10,15 @@ chrome.webNavigation.onBeforeNavigate.addListener(async function(details) {
 
 	let tabInfoKey = `tab_${details.tabId}`;
 	let tabInfo = (await chrome.storage.session.get(tabInfoKey))[tabInfoKey];
-	if (!tabInfo || !tabInfo.codeVerifier) {
+	if (!tabInfo || !tabInfo.codeVerifier || tabInfo.processingAuth) {
 		return;
 	}
 
 	await chrome.storage.session.set({
 		[tabInfoKey]: {
 			...tabInfo,
-			authUrl: details.url
+			authUrl: details.url,
+			processingAuth: true
 		}
 	});
 
