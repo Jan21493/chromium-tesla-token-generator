@@ -28,7 +28,7 @@ async function main() {
 		return;
 	}
 
-	let queryString = callbackUrl.searchParams;
+	let queryString = getCallbackParams(callbackUrl);
 	if (queryString.get('state') !== state) {
 		fatalError('Unable to login. The authorization response state did not match.');
 		return;
@@ -99,7 +99,7 @@ function fatalError(msg) {
 function getCallbackUrl(authUrl) {
 	try {
 		let currentUrl = new URL(window.location.href);
-		if (currentUrl.searchParams.toString()) {
+		if (currentUrl.searchParams.toString() || currentUrl.hash) {
 			return currentUrl;
 		}
 	} catch (ex) {
@@ -115,6 +115,14 @@ function getCallbackUrl(authUrl) {
 	} catch (ex) {
 		return null;
 	}
+}
+
+function getCallbackParams(callbackUrl) {
+	if (callbackUrl.searchParams.toString()) {
+		return callbackUrl.searchParams;
+	}
+
+	return new URLSearchParams(callbackUrl.hash.replace(/^#/, ''));
 }
 
 async function exchangeCodeForToken({authBaseUrl, code, codeVerifier, redirectUri}) {

@@ -3,14 +3,14 @@ const AUTH_PAGE_URL = chrome.runtime.getURL('auth.html');
 const AUTH_REDIRECT_RULE_ID = 1;
 
 chrome.runtime.onInstalled.addListener(() => {
-	void setupAuthRedirectRule();
+	setupAuthRedirectRule();
 });
 
 chrome.runtime.onStartup.addListener(() => {
-	void setupAuthRedirectRule();
+	setupAuthRedirectRule();
 });
 
-void setupAuthRedirectRule();
+setupAuthRedirectRule();
 
 chrome.action.onClicked.addListener(async function(tab) {
 	let newTab = await chrome.tabs.create({url: 'setup.html'});
@@ -18,11 +18,15 @@ chrome.action.onClicked.addListener(async function(tab) {
 });
 
 chrome.webNavigation.onBeforeNavigate.addListener(function(details) {
-	void handleNavigationCallback(details);
+	handleNavigationCallback(details).catch(ex => {
+		console.warn('Unable to process Tesla OAuth callback.', ex);
+	});
 });
 
 chrome.webNavigation.onErrorOccurred.addListener(function(details) {
-	void handleNavigationCallback(details);
+	handleNavigationCallback(details).catch(ex => {
+		console.warn('Unable to process Tesla OAuth callback.', ex);
+	});
 });
 
 async function handleNavigationCallback(details) {
