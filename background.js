@@ -39,6 +39,7 @@ chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
 
 				// Edge doesn't like it if we try to redirect to an extension page with declarativeNetRequest.
 				// So instead, update its location here
+				// The current launchWebAuthFlow-based flow still uses this tab update as the final handoff into auth.html.
 				await chrome.tabs.update(sender.tab.id, {url: chrome.runtime.getURL('auth.html')});
 				return;
 

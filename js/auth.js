@@ -130,5 +130,13 @@ function formatAccessTokenValidity(expiresIn) {
 		return '(none returned)';
 	}
 
+	if (expiresInSeconds >= 86400) {
+		return `${Math.floor(expiresInSeconds / 86400)} days`;
+	}
+
+	if (expiresInSeconds >= 3600) {
+		return `${Math.floor(expiresInSeconds / 3600)} hours`;
+	}
+
 	return `${Math.floor(expiresInSeconds / 60)} minutes`;
 }
