@@ -56,6 +56,7 @@ function generateCodeVerifier() {
 }
 
 function generateOAuthState() {
+	// Generate a random OAuth state value so the redirect response can be validated against CSRF.
 	return crypto.randomUUID().replace(/-/g, '');
 }
 

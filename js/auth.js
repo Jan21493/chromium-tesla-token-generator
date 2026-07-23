@@ -1,4 +1,7 @@
 const outputDiv = document.getElementById('output');
+const SECONDS_PER_MINUTE = 60;
+const SECONDS_PER_HOUR = 60 * SECONDS_PER_MINUTE;
+const SECONDS_PER_DAY = 24 * SECONDS_PER_HOUR;
 
 main();
 async function main() {
@@ -130,13 +133,13 @@ function formatAccessTokenValidity(expiresIn) {
 		return '(none returned)';
 	}
 
-	if (expiresInSeconds >= 86400) {
-		return `${Math.floor(expiresInSeconds / 86400)} days`;
+	if (expiresInSeconds >= SECONDS_PER_DAY) {
+		return `${Math.floor(expiresInSeconds / SECONDS_PER_DAY)} days`;
 	}
 
-	if (expiresInSeconds >= 3600) {
-		return `${Math.floor(expiresInSeconds / 3600)} hours`;
+	if (expiresInSeconds >= SECONDS_PER_HOUR) {
+		return `${Math.floor(expiresInSeconds / SECONDS_PER_HOUR)} hours`;
 	}
 
-	return `${Math.floor(expiresInSeconds / 60)} minutes`;
+	return `${Math.floor(expiresInSeconds / SECONDS_PER_MINUTE)} minutes`;
 }
