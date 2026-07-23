@@ -55,7 +55,7 @@ async function main() {
 		document.getElementById('access-token').textContent = result.access_token || '(none returned)';
 		document.getElementById('refresh-token').textContent = result.refresh_token || '(none returned)';
 		document.getElementById('id-token').textContent = result.id_token || '(none returned)';
-		document.getElementById('access-token-validity').textContent = result.expires_in ? `${result.expires_in / 60} minutes` : '(none returned)';
+		document.getElementById('access-token-validity').textContent = result.expires_in ? `${Math.floor(result.expires_in / 60)} minutes` : '(none returned)';
 		document.getElementById('output-tokens').style.display = 'block';
 
 		outputDiv.style.display = 'block';

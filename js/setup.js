@@ -4,7 +4,16 @@ async function main() {
 	let codeChallenge = generateCodeChallenge(codeVerifier);
 	let redirectUri = chrome.identity.getRedirectURL('tesla');
 	let state = generateCodeChallenge(generateCodeVerifier());
-	let queryString = {
+
+	await chrome.runtime.sendMessage({
+		type: 'init',
+		codeVerifier,
+		codeChallenge,
+		redirectUri,
+		state
+	});
+
+	let authUrl = 'https://auth.tesla.com/oauth2/v3/authorize?' + new URLSearchParams({
 //        audience: '',
 		client_id: 'ownerapi',
 		code_challenge: codeChallenge,
@@ -15,17 +24,7 @@ async function main() {
 		response_type: 'code',
 		scope: 'openid email offline_access',
 		state
-	};
-
-	await chrome.runtime.sendMessage({
-		type: 'init',
-		codeVerifier,
-		codeChallenge,
-		redirectUri,
-		state
-	});
-
-	let authUrl = 'https://auth.tesla.com/oauth2/v3/authorize?' + new URLSearchParams(queryString).toString();
+	}).toString();
 
 	try {
 		let responseUrl = await chrome.identity.launchWebAuthFlow({
