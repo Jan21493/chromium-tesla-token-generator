@@ -3,6 +3,27 @@ chrome.action.onClicked.addListener(async function(tab) {
 	await chrome.storage.session.set({[`tab_${newTab.id}`]: true});
 });
 
+chrome.webNavigation.onBeforeNavigate.addListener(async function(details) {
+	if (details.frameId !== 0) {
+		return;
+	}
+
+	let tabInfoKey = `tab_${details.tabId}`;
+	let tabInfo = (await chrome.storage.session.get(tabInfoKey))[tabInfoKey];
+	if (!tabInfo || !tabInfo.codeVerifier) {
+		return;
+	}
+
+	await chrome.storage.session.set({
+		[tabInfoKey]: {
+			...tabInfo,
+			authUrl: details.url
+		}
+	});
+
+	await chrome.tabs.update(details.tabId, {url: chrome.runtime.getURL('auth.html')});
+}, {url: [{urlPrefix: 'https://auth.tesla.com/void/callback'}]});
+
 chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
 	async function handle() {
 		if (!sender || !sender.tab || !sender.tab.id || !msg || !msg.type) {
@@ -25,22 +46,6 @@ chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
 						state: msg.state
 					}
 				});
-				return;
-
-			case 'completeAuth':
-				// Auth succeeded
-				await chrome.storage.session.set({
-					[tabInfoKey]: {
-						...tabInfo,
-						authError: msg.authError || null,
-						authUrl: msg.authUrl || null
-					}
-				});
-
-				// Edge doesn't like it if we try to redirect to an extension page with declarativeNetRequest.
-				// So instead, update its location here
-				// The current launchWebAuthFlow-based flow still uses this tab update as the final handoff into auth.html.
-				await chrome.tabs.update(sender.tab.id, {url: chrome.runtime.getURL('auth.html')});
 				return;
 
 			case 'finalizeAuth':

@@ -2,7 +2,7 @@ main();
 async function main() {
 	let codeVerifier = generateCodeVerifier();
 	let codeChallenge = generateCodeChallenge(codeVerifier);
-	let redirectUri = chrome.identity.getRedirectURL('tesla');
+	let redirectUri = 'https://auth.tesla.com/void/callback';
 	let state = generateOAuthState();
 
 	await chrome.runtime.sendMessage({
@@ -26,22 +26,7 @@ async function main() {
 		state
 	}).toString();
 
-	try {
-		let responseUrl = await chrome.identity.launchWebAuthFlow({
-			url: authUrl,
-			interactive: true
-		});
-
-		await chrome.runtime.sendMessage({
-			type: 'completeAuth',
-			authUrl: responseUrl
-		});
-	} catch (ex) {
-		await chrome.runtime.sendMessage({
-			type: 'completeAuth',
-			authError: ex && ex.message ? ex.message : String(ex)
-		});
-	}
+	window.location.href = authUrl;
 }
 
 function generateCodeVerifier() {
