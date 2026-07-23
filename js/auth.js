@@ -55,7 +55,7 @@ async function main() {
 		document.getElementById('access-token').textContent = result.access_token || '(none returned)';
 		document.getElementById('refresh-token').textContent = result.refresh_token || '(none returned)';
 		document.getElementById('id-token').textContent = result.id_token || '(none returned)';
-		document.getElementById('access-token-validity').textContent = result.expires_in ? `${Math.floor(result.expires_in / 60)} minutes` : '(none returned)';
+		document.getElementById('access-token-validity').textContent = formatAccessTokenValidity(result.expires_in);
 		document.getElementById('output-tokens').style.display = 'block';
 
 		outputDiv.style.display = 'block';
@@ -122,4 +122,13 @@ async function exchangeCodeForToken({authBaseUrl, code, codeVerifier, redirectUr
 	}
 
 	return result;
+}
+
+function formatAccessTokenValidity(expiresIn) {
+	let expiresInSeconds = Number(expiresIn);
+	if (!Number.isFinite(expiresInSeconds) || expiresInSeconds <= 0) {
+		return '(none returned)';
+	}
+
+	return `${Math.floor(expiresInSeconds / 60)} minutes`;
 }

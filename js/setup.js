@@ -3,7 +3,7 @@ async function main() {
 	let codeVerifier = generateCodeVerifier();
 	let codeChallenge = generateCodeChallenge(codeVerifier);
 	let redirectUri = chrome.identity.getRedirectURL('tesla');
-	let state = generateCodeChallenge(generateCodeVerifier());
+	let state = generateState();
 
 	await chrome.runtime.sendMessage({
 		type: 'init',
@@ -53,6 +53,10 @@ function generateCodeVerifier() {
 		output += chars[rand];
 	}
 	return output;
+}
+
+function generateState() {
+	return crypto.randomUUID().replace(/-/g, '');
 }
 
 function generateCodeChallenge(verifier) {
