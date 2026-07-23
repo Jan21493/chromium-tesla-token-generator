@@ -2,7 +2,7 @@ main();
 async function main() {
 	let codeVerifier = generateCodeVerifier();
 	let codeChallenge = generateCodeChallenge(codeVerifier);
-	let redirectUri = 'https://auth.tesla.com/void/callback';
+	let redirectUri = 'tesla://auth/callback';
 	let state = generateOAuthState();
 
 	await chrome.runtime.sendMessage({
