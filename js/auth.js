@@ -1,4 +1,7 @@
 const outputDiv = document.getElementById('output');
+const SECONDS_PER_MINUTE = 60;
+const SECONDS_PER_HOUR = 60 * SECONDS_PER_MINUTE;
+const SECONDS_PER_DAY = 24 * SECONDS_PER_HOUR;
 
 main();
 async function main() {
@@ -8,50 +11,60 @@ async function main() {
 		return;
 	}
 
-	let {codeVerifier, codeChallenge, authUrl} = response;
+	let {codeVerifier, authError, authUrl, redirectUri, state} = response;
+	if (authError) {
+		fatalError(`Unable to login. ${authError}`);
+		return;
+	}
 
-	let qsPos = authUrl.indexOf('?');
-	let rawQueryString = authUrl.substring(qsPos + 1).split('&');
-	let queryString = {};
-	rawQueryString.forEach((rawQueryStringPart) => {
-		let parts = rawQueryStringPart.split('=');
-		queryString[parts[0]] = decodeURIComponent(parts.slice(1).join('='));
-	});
+	if (!redirectUri) {
+		fatalError('This login attempt is missing redirect information.');
+		return;
+	}
 
-	if (!queryString.code) {
+	let callbackUrl;
+	try {
+		callbackUrl = new URL(authUrl);
+	} catch (ex) {
+		fatalError('Unable to login. An invalid authorization response was returned.');
+		return;
+	}
+
+	let queryString = callbackUrl.searchParams;
+	if (queryString.get('state') !== state) {
+		fatalError('Unable to login. The authorization response state did not match.');
+		return;
+	}
+
+	if (queryString.get('error')) {
+		let errorDescription = queryString.get('error_description') || queryString.get('error');
+		fatalError(`Unable to login. ${errorDescription}`);
+		return;
+	}
+
+	if (!queryString.get('code')) {
 		fatalError('Unable to login. No authorization code was issued.');
 		return;
 	}
 
-	let xhr = new XMLHttpRequest();
-	xhr.open('POST', (queryString.issuer || 'https://auth.tesla.com/oauth2/v3') + '/token');
-	xhr.setRequestHeader('Content-Type', 'application/json');
-	xhr.send(JSON.stringify({
-		grant_type: 'authorization_code',
-		client_id: 'ownerapi',
-		code_verifier: codeVerifier,
-		code: queryString.code,
-		redirect_uri: authUrl.substring(0, qsPos)
-	}));
+	try {
+		let result = await exchangeCodeForToken({
+			authBaseUrl: queryString.get('issuer') || 'https://auth.tesla.com/oauth2/v3',
+			code: queryString.get('code'),
+			codeVerifier,
+			redirectUri
+		});
 
-	xhr.onreadystatechange = function() {
-		if (xhr.readyState != XMLHttpRequest.DONE) {
-			return;
-		}
+		document.getElementById('access-token').textContent = result.access_token || '(none returned)';
+		document.getElementById('refresh-token').textContent = result.refresh_token || '(none returned)';
+		document.getElementById('id-token').textContent = result.id_token || '(none returned)';
+		document.getElementById('access-token-validity').textContent = formatAccessTokenValidity(result.expires_in);
+		document.getElementById('output-tokens').style.display = 'block';
 
-		try {
-			let result = JSON.parse(xhr.responseText);
-			document.getElementById('access-token').textContent = result.access_token || '(none returned)';
-			document.getElementById('refresh-token').textContent = result.refresh_token || '(none returned)';
-			document.getElementById('id-token').textContent = result.id_token || '(none returned)';
-			document.getElementById('access-token-validity').textContent = `${result.expires_in / 60} minutes`;
-			document.getElementById('output-tokens').style.display = 'block';
-
-			outputDiv.style.display = 'block';
-		} catch (ex) {
-			fatalError('There was an error logging in. Invalid JSON was returned.');
-		}
-	};
+		outputDiv.style.display = 'block';
+	} catch (ex) {
+		fatalError(ex && ex.message ? ex.message : 'There was an error logging in.');
+	}
 }
 
 // Set up click listeners
@@ -83,4 +96,50 @@ function fatalError(msg) {
 	outputDiv.className = 'fatal-error-message';
 	outputDiv.textContent = msg;
 	outputDiv.style.display = 'block';
+}
+
+async function exchangeCodeForToken({authBaseUrl, code, codeVerifier, redirectUri}) {
+	let response = await fetch(authBaseUrl + '/token', {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json'
+		},
+		body: JSON.stringify({
+			grant_type: 'authorization_code',
+			client_id: 'ownerapi',
+			code_verifier: codeVerifier,
+			code,
+			redirect_uri: redirectUri
+		})
+	});
+
+	let result;
+	try {
+		result = await response.json();
+	} catch (ex) {
+		throw new Error('There was an error logging in. Invalid JSON was returned.');
+	}
+
+	if (!response.ok) {
+		throw new Error(result.error_description || result.error || 'There was an error logging in.');
+	}
+
+	return result;
+}
+
+function formatAccessTokenValidity(expiresIn) {
+	let expiresInSeconds = Number(expiresIn);
+	if (!Number.isFinite(expiresInSeconds) || expiresInSeconds <= 0) {
+		return '(none returned)';
+	}
+
+	if (expiresInSeconds >= SECONDS_PER_DAY) {
+		return `${Math.floor(expiresInSeconds / SECONDS_PER_DAY)} days`;
+	}
+
+	if (expiresInSeconds >= SECONDS_PER_HOUR) {
+		return `${Math.floor(expiresInSeconds / SECONDS_PER_HOUR)} hours`;
+	}
+
+	return `${Math.floor(expiresInSeconds / SECONDS_PER_MINUTE)} minutes`;
 }

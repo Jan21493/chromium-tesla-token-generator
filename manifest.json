@@ -8,8 +8,8 @@
 		"128": "img/128.png"
 	},
 	"permissions": [
-		"storage",
-		"webRequest"
+		"identity",
+		"storage"
 	],
 	"host_permissions": [
 		"https://auth.tesla.com/*"
