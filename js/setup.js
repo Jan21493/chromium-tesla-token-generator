@@ -25,7 +25,7 @@ async function main() {
 		state
 	});
 
-	let authUrl = 'https://auth.tesla.com/oauth2/v3/authorize?' + Object.keys(queryString).map(k => `${k}=${encodeURIComponent(queryString[k])}`).join('&');
+	let authUrl = 'https://auth.tesla.com/oauth2/v3/authorize?' + new URLSearchParams(queryString).toString();
 
 	try {
 		let responseUrl = await chrome.identity.launchWebAuthFlow({

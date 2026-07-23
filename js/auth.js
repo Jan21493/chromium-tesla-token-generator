@@ -14,6 +14,11 @@ async function main() {
 		return;
 	}
 
+	if (!redirectUri) {
+		fatalError('This login attempt is missing redirect information.');
+		return;
+	}
+
 	let callbackUrl;
 	try {
 		callbackUrl = new URL(authUrl);
@@ -22,7 +27,7 @@ async function main() {
 		return;
 	}
 
-	let queryString = getAuthResponseParams(callbackUrl);
+	let queryString = callbackUrl.searchParams;
 	if (queryString.get('state') !== state) {
 		fatalError('Unable to login. The authorization response state did not match.');
 		return;
@@ -44,7 +49,7 @@ async function main() {
 			authBaseUrl: queryString.get('issuer') || 'https://auth.tesla.com/oauth2/v3',
 			code: queryString.get('code'),
 			codeVerifier,
-			redirectUri: redirectUri || `${callbackUrl.origin}${callbackUrl.pathname}`
+			redirectUri
 		});
 
 		document.getElementById('access-token').textContent = result.access_token || '(none returned)';
@@ -117,16 +122,4 @@ async function exchangeCodeForToken({authBaseUrl, code, codeVerifier, redirectUr
 	}
 
 	return result;
-}
-
-function getAuthResponseParams(callbackUrl) {
-	let params = new URLSearchParams(callbackUrl.search);
-	let hashParams = new URLSearchParams(callbackUrl.hash.replace(/^#/, ''));
-	for (let [key, value] of hashParams.entries()) {
-		if (!params.has(key)) {
-			params.set(key, value);
-		}
-	}
-
-	return params;
 }
