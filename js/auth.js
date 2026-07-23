@@ -99,7 +99,7 @@ function fatalError(msg) {
 function getCallbackUrl(authUrl) {
 	try {
 		let currentUrl = new URL(window.location.href);
-		if (currentUrl.searchParams.toString() || currentUrl.hash) {
+		if (currentUrl.searchParams.toString() || currentUrl.hash.length > 1) {
 			return currentUrl;
 		}
 	} catch (ex) {

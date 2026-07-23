@@ -17,17 +17,16 @@ chrome.action.onClicked.addListener(async function(tab) {
 	await chrome.storage.session.set({[`tab_${newTab.id}`]: true});
 });
 
-chrome.webNavigation.onBeforeNavigate.addListener(function(details) {
-	handleNavigationCallback(details).catch(ex => {
-		console.warn('Unable to process Tesla OAuth callback.', ex);
+function addNavigationListener(event) {
+	event.addListener(function(details) {
+		handleNavigationCallback(details).catch(ex => {
+			console.warn('Unable to process Tesla OAuth callback.', ex);
+		});
 	});
-});
+}
 
-chrome.webNavigation.onErrorOccurred.addListener(function(details) {
-	handleNavigationCallback(details).catch(ex => {
-		console.warn('Unable to process Tesla OAuth callback.', ex);
-	});
-});
+addNavigationListener(chrome.webNavigation.onBeforeNavigate);
+addNavigationListener(chrome.webNavigation.onErrorOccurred);
 
 async function handleNavigationCallback(details) {
 	if (details.frameId !== 0) {
@@ -81,7 +80,7 @@ async function setupAuthRedirectRule() {
 					}
 				},
 				condition: {
-					regexFilter: '^tesla://auth/callback(.*)$',
+					regexFilter: '^tesla://auth/callback([?#].*)?$',
 					resourceTypes: ['main_frame']
 				}
 			}]
