@@ -22,15 +22,13 @@ async function main() {
 		return;
 	}
 
-	let callbackUrl;
-	try {
-		callbackUrl = new URL(authUrl);
-	} catch (ex) {
+	let callbackUrl = getCallbackUrl(authUrl);
+	if (!callbackUrl) {
 		fatalError('Unable to login. An invalid authorization response was returned.');
 		return;
 	}
 
-	let queryString = callbackUrl.searchParams;
+	let queryString = getCallbackParams(callbackUrl);
 	if (queryString.get('state') !== state) {
 		fatalError('Unable to login. The authorization response state did not match.');
 		return;
@@ -96,6 +94,35 @@ function fatalError(msg) {
 	outputDiv.className = 'fatal-error-message';
 	outputDiv.textContent = msg;
 	outputDiv.style.display = 'block';
+}
+
+function getCallbackUrl(authUrl) {
+	try {
+		let currentUrl = new URL(window.location.href);
+		if (currentUrl.searchParams.toString() || currentUrl.hash.length > 1) {
+			return currentUrl;
+		}
+	} catch (ex) {
+		// ignore current page parsing errors and fall back to the stored auth URL
+	}
+
+	if (!authUrl) {
+		return null;
+	}
+
+	try {
+		return new URL(authUrl);
+	} catch (ex) {
+		return null;
+	}
+}
+
+function getCallbackParams(callbackUrl) {
+	if (callbackUrl.searchParams.toString()) {
+		return callbackUrl.searchParams;
+	}
+
+	return new URLSearchParams(callbackUrl.hash.replace(/^#/, ''));
 }
 
 async function exchangeCodeForToken({authBaseUrl, code, codeVerifier, redirectUri}) {
